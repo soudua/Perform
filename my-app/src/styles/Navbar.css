@@ -1,0 +1,58 @@
+/* 🔹 Top Grey Bar */
+.topbar {
+  background: #f5f5f5; /* Light grey */
+  padding: 8px 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw; /* verificar que está ocupar todo width */
+  z-index: 1100;
+  display: flex;
+  justify-content: space-between; /*em vez de centro, isto foca-se em espaço cada um, um para esquerda, outra direita*/
+}
+
+.topbar-container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 50px;
+}
+
+.topbar-left {
+  display: flex;
+  gap: 15px;
+  margin-right: auto; 
+}
+
+/* 🔹 icons direita */
+.topbar-right {
+  display: flex;
+  gap: 15px;
+  margin-left: auto; /*Passar os icons para forma direita*/
+}
+
+.topbar a {
+  text-decoration: none;
+  color: black;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.topbar a:hover {
+  color: gray;
+}
+
+
+
+
+/* 🔹 Adjust Navbar Position */
+.navbar {
+  position: fixed;
+  top: 40px; /* Push navbar below topbar */
+  width: 100%;
+  background: white;
+  padding: 10px 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1)}
+
+ 

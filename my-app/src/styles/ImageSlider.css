@@ -1,0 +1,55 @@
+/* Container for the image slider */
+.slider-container {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: 50px auto;
+    margin-top: 0; /* Center the slider */
+    overflow: hidden; /* Hide images that are not in the current view */
+    
+  }
+  
+  /* Image itself */
+  .slider-image img {
+    width: 950px;
+    height: 600px;
+    display: block; /* Remove any spaces below the image */
+    border-radius: 8px;
+  }
+  
+  /* Styling for the buttons */
+  .slider-btn {
+    position: absolute;
+    top: 90%;
+    transform: translateY(-50%);
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    font-size: 30px;
+    border-radius: 30px;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    z-index: 1000;
+    height: 60px;
+    width: 60px;
+  }
+  
+  .slider-btn:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+  
+  .prev {
+    left: 800px;
+  }
+  
+  .next {
+    right: 10px;
+  }
+  
+  /* Make the buttons visible on all screen sizes */
+  @media (max-width: 768px) {
+    .slider-btn {
+      font-size: 25px;
+    }
+  }
+  
