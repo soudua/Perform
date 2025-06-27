@@ -120,7 +120,6 @@ export default function PersistentTabBar() {
     let route = '/';
     if (tab === 'Registar') {
       if (label === 'Registar') route = '/main/registar/registo';
-      else if (label === 'Ausências') route = '/main/registar/ausencias';
       else if (label === 'Display') route = '/main/registar/display';
     } else if (tab === 'Calendário') {
       if (label === 'Visualizar') route = '/main/calendario';
@@ -138,7 +137,7 @@ export default function PersistentTabBar() {
   };
 
   const navButtons = [
-    { tab: 'Registar', icon: faClock, label: 'Registar', children: ['Registar', 'Ausências', 'Display'] },
+    { tab: 'Registar', icon: faClock, label: 'Registar', children: ['Registar', 'Display'] },
     { tab: 'Calendário', icon: faCalendarDays, label: 'Calendário', children: ['Visualizar'] },
     { tab: 'Settings', icon: faGear, label: 'Settings', children: ['Perfil', 'Configurações'] },
     { tab: 'Diagramas', icon: faChartSimple, label: 'Diagramas', children: ['My Perform', 'Relatórios'] },
@@ -241,8 +240,8 @@ export default function PersistentTabBar() {
         )}
       </div>
 
-      {/* Collapse button - fixed position */}
-      <div className='fixed left-0 top-8 z-50' style={{ left: isCollapsed ? '5rem' : '15rem' }}>
+      {/* Collapse button - fixed position with smooth transition */}
+      <div className={`fixed top-8 z-50 transition-all duration-500 ${isCollapsed ? 'left-20' : 'left-60'}`}>
         <button onClick={toggleNavbar} className='bg-white p-2 rounded-r-2xl border-r-2 shadow-md'>
           <FontAwesomeIcon icon={faArrowLeft} className={`${isCollapsed ? 'rotate-180' : ''} transition-transform duration-300 text-gray-500`} />
         </button>

@@ -15,7 +15,17 @@ console.log('Environment Mode:', import.meta.env.MODE);
 
 export const apiConfig = {
   baseURL: API_BASE_URL,
-  endpoints: {    // User routes
+  endpoints: {    
+    // Project routes
+    allProjects: '/api/projects',
+    projectTotalHours: '/api/project-total-hours',
+    projectTimeline: '/api/project-timeline',
+    projectCost: '/api/project-cost',
+    projectBudget: '/api/project-budget',
+    projectRiskByMonth: '/api/project-risk-by-month',
+    // User routes
+    userRoles: '/api/user-roles',
+    userHours: '/api/user-hours',
     login: '/api/users/login',
     register: '/api/users/register',
     userAvailableHours: '/api/users/user-available-hours',
@@ -43,7 +53,45 @@ export const apiConfig = {
       // Absence routes
     absences: '/api/absences',
     userAbsences: '/api/absences/user-absences',
-    userMonthHours: '/api/absences/user-month-hours'
+    userMonthHours: '/api/absences/user-month-hours',
+    projectUsers: '/api/project-users/' // expects /api/project-users/:projectName
+  }
+};
+
+// Absence API Functions
+export const absencesApi = {
+  getAllAbsences: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/absences`);
+    if (!response.ok) throw new Error('Failed to fetch absences');
+    return response.json();
+  },
+
+  createAbsence: async (absenceData: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/absences`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(absenceData)
+    });
+    if (!response.ok) throw new Error('Failed to create absence');
+    return response.json();
+  },
+
+  updateAbsence: async (id: number, absenceData: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/absences/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(absenceData)
+    });
+    if (!response.ok) throw new Error('Failed to update absence');
+    return response.json();
+  },
+
+  deleteAbsence: async (id: number) => {
+    const response = await fetch(`${API_BASE_URL}/api/absences/${id}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) throw new Error('Failed to delete absence');
+    return response.json();
   }
 };
 

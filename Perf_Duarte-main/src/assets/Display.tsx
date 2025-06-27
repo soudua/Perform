@@ -131,17 +131,7 @@ export default function Display() {
               <Clock className="w-4 h-4" />
               Horas Registadas
             </button>
-            <button
-              onClick={() => setActiveTab('ausencias')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'ausencias'
-                  ? 'bg-blue-500 text-white shadow-md'
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-              }`}
-            >
-              <UserX className="w-4 h-4" />
-              Ausências
-            </button>
+            
           </div>
 
           {/* Data Table */}
@@ -149,7 +139,6 @@ export default function Display() {
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
               <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                 {activeTab === 'horas' ? <Clock className="w-5 h-5" /> : <UserX className="w-5 h-5" />}
-                {activeTab === 'horas' ? 'Registo de Horas' : 'Registo de Ausências'}
               </h2>
             </div>
 

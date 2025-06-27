@@ -1,122 +1,135 @@
-import React, { useState } from 'react';
-import { Calendar, X, Plus, Edit, Trash2, Clock, MapPin, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Trash2, Clock, MapPin, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import { createApiUrl, apiConfig } from '../utils/apiConfig';
+
+interface Event {
+  id: number;
+  title: string;
+  startDate: string;
+  endDate: string;
+  time: string;
+  description: string;
+  location: string;
+  attendees: string;
+  color: string;
+}
 
 const CalendarioModerno = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState([
-    { 
-      id: 1, 
-      title: 'Reunião de Equipe', 
-      date: '2025-06-15', 
-      time: '14:00',
-      description: 'Reunião semanal da equipe de desenvolvimento',
-      location: 'Sala de Conferências',
-      attendees: 'João, Maria, Pedro',
-      color: 'bg-sky-500' 
-    },
-    { 
-      id: 2, 
-      title: 'Apresentação Cliente', 
-      date: '2025-06-18', 
-      time: '10:30',
-      description: 'Apresentação do projeto para o cliente ABC',
-      location: 'Online - Zoom',
-      attendees: 'Equipe Comercial',
-      color: 'bg-green-500' 
-    },
-    { 
-      id: 3, 
-      title: 'Workshop React', 
-      date: '2025-06-20', 
-      time: '09:00',
-      description: 'Workshop interno sobre React e hooks avançados',
-      location: 'Lab de Desenvolvimento',
-      attendees: 'Todos os devs',
-      color: 'bg-purple-500' 
+  const [events, setEvents] = useState<Array<Event>>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  const loadEvents = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(createApiUrl(apiConfig.endpoints.absences));
+      // Transform the response data to match our Event interface if necessary
+      const formattedEvents = response.data.map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        time: event.time || '',
+        description: event.description || '',
+        location: event.location || '',
+        attendees: event.attendees || '',
+        color: event.color || 'from-blue-400 to-blue-600'
+      }));
+      setEvents(formattedEvents);
+    } catch (error) {
+      console.error('Failed to load events:', error);
+      // You might want to add some UI feedback here
+    } finally {
+      setLoading(false);
     }
-  ]);
-  
+  };
+
   const [showEventModal, setShowEventModal] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [clickedDate, setClickedDate] = useState(null);
-  
+  const [clickedDate, setClickedDate] = useState<Date | null>(null);
+
   const [eventForm, setEventForm] = useState({
     title: '',
-    date: '',
+    startDate: '',
+    endDate: '',
     time: '',
     description: '',
     location: '',
     attendees: '',
-    color: 'bg-blue-500'
+    color: 'from-blue-400 to-blue-600'
   });
 
   const colors = [
-    { name: 'Azul', value: 'bg-blue-500' },
-    { name: 'Verde', value: 'bg-green-500' },
-    { name: 'Roxo', value: 'bg-purple-500' },
-    { name: 'Vermelho', value: 'bg-red-500' },
-    { name: 'Amarelo', value: 'bg-yellow-500' },
-    { name: 'Rosa', value: 'bg-pink-500' }
+    { name: 'Azul', value: 'from-blue-400 to-blue-600' },
+    { name: 'Verde', value: 'from-emerald-400 to-emerald-600' },
+    { name: 'Roxo', value: 'from-purple-400 to-purple-600' },
+    { name: 'Vermelho', value: 'from-red-400 to-red-600' },
+    { name: 'Amarelo', value: 'from-amber-400 to-amber-600' },
+    { name: 'Rosa', value: 'from-pink-400 to-pink-600' },
+    { name: 'Índigo', value: 'from-indigo-400 to-indigo-600' },
+    { name: 'Teal', value: 'from-teal-400 to-teal-600' }
   ];
 
-  const getDaysInMonth = (date) => {
+  const formatDate = (date: Date): string => date.toISOString().split('T')[0];
+
+  const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startDay = firstDay.getDay();
-    
+
     const days = [];
-    
-    // Dias do mês anterior
     for (let i = startDay - 1; i >= 0; i--) {
-      const prevDate = new Date(year, month, -i);
-      days.push({ date: prevDate, isCurrentMonth: false });
+      days.push({ date: new Date(year, month, -i), isCurrentMonth: false });
     }
-    
-    // Dias do mês atual
     for (let day = 1; day <= daysInMonth; day++) {
       days.push({ date: new Date(year, month, day), isCurrentMonth: true });
     }
-    
-    // Dias do próximo mês para completar a grade
     const remainingDays = 42 - days.length;
     for (let day = 1; day <= remainingDays; day++) {
       days.push({ date: new Date(year, month + 1, day), isCurrentMonth: false });
     }
-    
     return days;
   };
 
-  const formatDate = (date) => {
-    return date.toISOString().split('T')[0];
-  };
-
-  const getEventsForDate = (date) => {
+  const getEventsForDate = (date: Date): Event[] => {
     const dateStr = formatDate(date);
-    return events.filter(event => event.date === dateStr);
+    return events.filter(event => dateStr >= event.startDate && dateStr <= event.endDate);
   };
 
-  const handleDateClick = (date) => {
+  const isToday = (date: Date): boolean => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const handleDateClick = (date: Date): void => {
+    const formatted = formatDate(date);
     setClickedDate(date);
     setEventForm({
       title: '',
-      date: formatDate(date),
+      startDate: formatted,
+      endDate: formatted,
       time: '',
       description: '',
       location: '',
       attendees: '',
-      color: 'bg-blue-500'
+      color: 'from-blue-400 to-blue-600'
     });
     setIsEditing(false);
     setSelectedEvent(null);
     setShowEventModal(true);
   };
 
-  const handleEventClick = (event, e) => {
+  const handleEventClick = (event: Event, e: React.MouseEvent): void => {
     e.stopPropagation();
     setSelectedEvent(event);
     setEventForm(event);
@@ -124,49 +137,99 @@ const CalendarioModerno = () => {
     setShowEventModal(true);
   };
 
-  const handleSaveEvent = () => {
-    if (!eventForm.title.trim()) return;
-    
-    if (isEditing) {
-      setEvents(events.map(event => 
-        event.id === selectedEvent.id ? { ...eventForm, id: selectedEvent.id } : event
-      ));
-    } else {
-      const newEvent = {
-        ...eventForm,
-        id: Date.now()
-      };
-      setEvents([...events, newEvent]);
+  const handleSaveEvent = async (): Promise<void> => {
+    if (!eventForm.title.trim()) {
+      alert('Por favor, insira um título para o evento');
+      return;
     }
     
-    setShowEventModal(false);
-    resetForm();
-  };
-
-  const handleDeleteEvent = () => {
-    if (selectedEvent) {
-      setEvents(events.filter(event => event.id !== selectedEvent.id));
+    setLoading(true);
+    try {
+      if (isEditing && selectedEvent) {
+        // Update existing event
+        const response = await axios.put(
+          createApiUrl(`${apiConfig.endpoints.absences}/${selectedEvent.id}`),
+          eventForm,
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+        
+        if (response.status === 200) {
+          const updatedEvent = response.data;
+          // Immediately update the local state with the updated event
+          setEvents(prevEvents => 
+            prevEvents.map(event => 
+              event.id === selectedEvent.id ? updatedEvent : event
+            )
+          );
+        }
+      } else {
+        // Create new event
+        const response = await axios.post(
+          createApiUrl(apiConfig.endpoints.absences),
+          eventForm,
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+        
+        if (response.status === 201 || response.status === 200) {
+          const newEvent = response.data;
+          // Immediately update the local state with the new event
+          setEvents(prevEvents => [...prevEvents, newEvent]);
+        }
+      }
+      
       setShowEventModal(false);
       resetForm();
+    } catch (error: any) {
+      console.error('Failed to save event:', error);
+      alert(error.response?.data?.message || 'Falha ao salvar o evento. Por favor, tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetForm = () => {
+  const handleDeleteEvent = async (): Promise<void> => {
+    if (!selectedEvent) return;
+
+    if (!confirm('Are you sure you want to delete this event?')) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.delete(
+        createApiUrl(`${apiConfig.endpoints.absences}/${selectedEvent.id}`),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      if (response.status === 200 || response.status === 204) {
+        // Remove the event from local state
+        setEvents(events.filter(event => event.id !== selectedEvent.id));
+        setShowEventModal(false);
+        resetForm();
+      }
+    } catch (error: any) {
+      console.error('Failed to delete event:', error);
+      alert(error.response?.data?.message || 'Failed to delete event. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = (): void => {
     setEventForm({
       title: '',
-      date: '',
+      startDate: '',
+      endDate: '',
       time: '',
       description: '',
       location: '',
       attendees: '',
-      color: 'bg-blue-500'
+      color: 'from-blue-400 to-blue-600'
     });
     setSelectedEvent(null);
     setIsEditing(false);
   };
 
-  const navigateMonth = (direction) => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1));
+  const navigateMonth = (dir: number): void => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + dir, 1));
   };
 
   const monthNames = [
@@ -174,267 +237,295 @@ const CalendarioModerno = () => {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
 
-  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        className="min-h-screen bg-gradient-to-br to-indigo-100 p-4"
-      >
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Calendar className="w-8 h-8" />
-                  <h1 className="text-3xl font-bold">
-                    {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                  </h1>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => navigateMonth(-1)}
-                    className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
-                  >
-                    ←
-                  </button>
-                  <button
-                    onClick={() => setCurrentDate(new Date())}
-                    className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors"
-                  >
-                    Hoje
-                  </button>
-                  <button
-                    onClick={() => navigateMonth(1)}
-                    className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
-                  >
-                    → 
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="p-6">
-              {/* Week Days Header */}
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {weekDays.map(day => (
-                  <div key={day} className="text-center font-semibold text-gray-600 py-2">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Days Grid */}
-              <div className="grid grid-cols-7 gap-2">
-                {getDaysInMonth(currentDate).map((day, index) => (
-                  <div
-                    key={index}
-                    onClick={() => day.isCurrentMonth && handleDateClick(day.date)}
-                    className={`
-                      min-h-[100px] p-2 border-2 rounded-xl cursor-pointer transition-all duration-200
-                      ${day.isCurrentMonth 
-                        ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50' 
-                        : 'border-gray-100 bg-gray-50 cursor-not-allowed'
-                      }
-                      ${day.date.toDateString() === new Date().toDateString() 
-                        ? 'ring-2 ring-blue-400 bg-blue-50' 
-                        : ''
-                      }
-                    `}
-                  >
-                    <div className={`
-                      text-sm font-medium mb-1
-                      ${day.isCurrentMonth ? 'text-gray-800' : 'text-gray-400'}
-                      ${day.date.toDateString() === new Date().toDateString() ? 'text-blue-600 font-bold' : ''}
-                    `}>
-                      {day.date.getDate()}
-                    </div>
-                    
-                    {day.isCurrentMonth && getEventsForDate(day.date).map(event => (
-                      <div
-                        key={event.id}
-                        onClick={(e) => handleEventClick(event, e)}
-                        className={`
-                          ${event.color} text-white text-xs p-1 rounded mb-1 cursor-pointer
-                          hover:scale-105 transition-transform truncate
-                        `}
-                      >
-                        {event.title}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+    <div className="min-h-screen bg-gradient-to-br">
+      <div className="container mx-auto px-4 py-8">
+        {/* Loading Overlay */}
+        {loading && (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded-xl shadow-xl">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
             </div>
           </div>
-        </div>
+        )}
+        
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/20 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 mb-8"
+        >
+          <div className="flex justify-between items-center ">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+              </h1>
+              
+            </div>
+            <div className="flex items-center space-x-3">
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigateMonth(-1)} 
+                className="p-3 bg-gradient-to-r bg-blue-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <ChevronLeft size={20} />
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setCurrentDate(new Date())}
+                className="px-6 py-3 bg-gradient-to-r bg-blue-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-medium"
+              >
+                Hoje
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigateMonth(1)} 
+                className="p-3 bg-gradient-to-r bg-blue-400 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <ChevronRight size={20} />
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Calendar Grid */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
+        >
+          {/* Days Header */}
+          <div className="grid grid-cols-7 gap-4 mb-4">
+            {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(day => (
+              <div key={day} className="text-center font-semibold text-gray-600 py-2">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar Days */}
+          <div className="grid grid-cols-7 gap-4">
+            {getDaysInMonth(currentDate).map((day, idx) => {
+              const dayEvents = getEventsForDate(day.date);
+              const isCurrentDay = isToday(day.date);
+              
+              return (
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.02 }}
+                  onClick={() => day.isCurrentMonth && handleDateClick(day.date)}
+                  className={`
+                    p-3 rounded-xl min-h-[100px] relative cursor-pointer transition-all duration-300
+                    ${day.isCurrentMonth 
+                      ? (isCurrentDay 
+                          ? 'bg-blue-400 text-white shadow-lg' 
+                          : 'bg-white hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 shadow-md hover:shadow-lg') 
+                      : 'bg-gray-50 text-gray-400'}
+                    border border-gray-100
+                  `}
+                >
+                  <div className={`text-sm font-semibold mb-2 ${isCurrentDay ? 'text-white' : ''}`}>
+                    {day.date.getDate()}
+                  </div>
+                  <div className="space-y-1">
+                    {dayEvents.slice(0, 2).map(ev => (
+                      <motion.div
+                        key={ev.id}
+                        whileHover={{ scale: 1.05 }}
+                        onClick={(e) => handleEventClick(ev, e)}
+                        className={`text-xs text-white px-2 py-1 rounded-lg truncate bg-gradient-to-r ${ev.color} shadow-sm cursor-pointer`}
+                      >
+                        {ev.time && <Clock size={10} className="inline mr-1" />}
+                        {ev.title}
+                      </motion.div>
+                    ))}
+                    {dayEvents.length > 2 && (
+                      <div className="text-xs text-gray-500 px-2">
+                        +{dayEvents.length - 2} mais
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
 
         {/* Event Modal */}
         <AnimatePresence>
           {showEventModal && (
-            <motion.div
+            <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             >
-              <motion.div
-                initial={{ scale: 0.9, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.9, y: 20 }}
-                className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
               >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold">
                       {isEditing ? 'Editar Evento' : 'Novo Evento'}
                     </h2>
-                    <button
+                    <motion.button 
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => setShowEventModal(false)}
-                      className="text-gray-500 hover:text-gray-700 p-1"
+                      className="p-2 hover:bg-white/20 rounded-lg transition-colors"
                     >
-                      <X className="w-6 h-6" />
-                    </button>
+                      <X size={20} />
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Título</label>
+                    <input 
+                      type="text" 
+                      value={eventForm.title} 
+                      onChange={e => setEventForm({ ...eventForm, title: e.target.value })} 
+                      placeholder="Nome do evento"
+                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Título do Evento
-                      </label>
-                      <input
-                        type="text"
-                        value={eventForm.title}
-                        onChange={(e) => setEventForm({...eventForm, title: e.target.value})}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Digite o título do evento"
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Data Início</label>
+                      <input 
+                        type="date" 
+                        value={eventForm.startDate} 
+                        onChange={e => setEventForm({ ...eventForm, startDate: e.target.value })} 
+                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Data Fim</label>
+                      <input 
+                        type="date" 
+                        value={eventForm.endDate} 
+                        onChange={e => setEventForm({ ...eventForm, endDate: e.target.value })} 
+                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Calendar className="w-4 h-4 inline mr-1" />
-                          Data
-                        </label>
-                        <input
-                          type="date"
-                          value={eventForm.date}
-                          onChange={(e) => setEventForm({...eventForm, date: e.target.value})}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Clock size={16} className="inline mr-1" />
+                      Horário
+                    </label>
+                    <input 
+                      type="time" 
+                      value={eventForm.time} 
+                      onChange={e => setEventForm({ ...eventForm, time: e.target.value })} 
+                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <MapPin size={16} className="inline mr-1" />
+                      Local
+                    </label>
+                    <input 
+                      type="text" 
+                      value={eventForm.location} 
+                      onChange={e => setEventForm({ ...eventForm, location: e.target.value })} 
+                      placeholder="Local do evento"
+                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <User size={16} className="inline mr-1" />
+                      Participantes
+                    </label>
+                    <input 
+                      type="text" 
+                      value={eventForm.attendees} 
+                      onChange={e => setEventForm({ ...eventForm, attendees: e.target.value })} 
+                      placeholder="Lista de participantes"
+                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
+                    <textarea 
+                      value={eventForm.description} 
+                      onChange={e => setEventForm({ ...eventForm, description: e.target.value })} 
+                      placeholder="Descrição do evento"
+                      rows={3}
+                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Cor do Evento</label>
+                    <div className="flex flex-wrap gap-2">
+                      {colors.map(c => (
+                        <motion.button 
+                          key={c.value}
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setEventForm({ ...eventForm, color: c.value })} 
+                          className={`w-8 h-8 rounded-full bg-gradient-to-r ${c.value} shadow-md ${eventForm.color === c.value ? 'ring-2 ring-gray-800 ring-offset-2' : ''}`}
+                          title={c.name}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Clock className="w-4 h-4 inline mr-1" />
-                          Hora
-                        </label>
-                        <input
-                          type="time"
-                          value={eventForm.time}
-                          onChange={(e) => setEventForm({...eventForm, time: e.target.value})}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <MapPin className="w-4 h-4 inline mr-1" />
-                        Local
-                      </label>
-                      <input
-                        type="text"
-                        value={eventForm.location}
-                        onChange={(e) => setEventForm({...eventForm, location: e.target.value})}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Onde será o evento?"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <User className="w-4 h-4 inline mr-1" />
-                        Participantes
-                      </label>
-                      <input
-                        type="text"
-                        value={eventForm.attendees}
-                        onChange={(e) => setEventForm({...eventForm, attendees: e.target.value})}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Quem vai participar?"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Descrição
-                      </label>
-                      <textarea
-                        value={eventForm.description}
-                        onChange={(e) => setEventForm({...eventForm, description: e.target.value})}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows="3"
-                        placeholder="Detalhes do evento..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Cor do Evento
-                      </label>
-                      <div className="flex space-x-2">
-                        {colors.map(color => (
-                          <button
-                            key={color.value}
-                            onClick={() => setEventForm({...eventForm, color: color.value})}
-                            className={`
-                              w-8 h-8 rounded-full ${color.value} border-2 transition-transform
-                              ${eventForm.color === color.value ? 'border-gray-800 scale-110' : 'border-gray-300'}
-                            `}
-                            title={color.name}
-                          />
-                        ))}
-                      </div>
+                      ))}
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex space-x-3 mt-8">
-                    {isEditing && (
-                      <button
-                        onClick={handleDeleteEvent}
-                        className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Excluir
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setShowEventModal(false)}
-                      className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors"
+                {/* Modal Footer */}
+                <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                  {isEditing && (
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleDeleteEvent} 
+                      className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-medium"
                     >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleSaveEvent}
-                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      {isEditing ? 'Salvar' : 'Criar'}
-                    </button>
-                  </div>
+                      <Trash2 size={16} className="inline mr-2" />
+                      Excluir
+                    </motion.button>
+                  )}
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowEventModal(false)} 
+                    className="bg-gray-500 text-white px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-medium"
+                  >
+                    Cancelar
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleSaveEvent} 
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-medium"
+                  >
+                    {isEditing ? 'Salvar' : 'Criar'}
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    </div>
   );
 };
 

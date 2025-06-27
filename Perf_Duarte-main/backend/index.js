@@ -4,6 +4,15 @@ import usersRoutes from './routes/users.js';
 import informationRoutes from './routes/information.js';
 import clientsRoutes from './routes/clients.js';
 import absencesRoutes from './routes/absences.js';
+import projectsRoutes from './routes/projects.js';
+import projectUsersRoutes from './routes/projectUsers.js';
+import userRolesRoutes from './routes/userRoles.js';
+import userHoursRoutes from './routes/userHours.js';
+import projectTotalHoursRoutes from './routes/projectTotalHours.js';
+import projectTimelineRoutes from './routes/projectTimeline.js';
+import projectCostRoutes from './routes/projectCost.js';
+import projectBudgetRoutes from './routes/projectBudget.js';
+import projectRiskByMonthRoutes from './routes/projectRiskByMonth.js';
 import { initDb } from './routes/db.js';
 
 const app = express();
@@ -60,6 +69,15 @@ app.use('/api/users', usersRoutes);
 app.use('/api/information', informationRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/absences', absencesRoutes);
+app.use('/api/projects', projectsRoutes);
+app.use('/api/project-users', projectUsersRoutes);
+app.use('/api/user-roles', userRolesRoutes);
+app.use('/api/user-hours', userHoursRoutes);
+app.use('/api/project-total-hours', projectTotalHoursRoutes);
+app.use('/api/project-timeline', projectTimelineRoutes);
+app.use('/api/project-cost', projectCostRoutes);
+app.use('/api/project-budget', projectBudgetRoutes);
+app.use('/api/project-risk-by-month', projectRiskByMonthRoutes);
 
 async function forceAdminPasswordReset() {
   if (process.env.NODE_ENV === 'production') {
