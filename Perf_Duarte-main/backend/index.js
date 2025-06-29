@@ -13,6 +13,9 @@ import projectTimelineRoutes from './routes/projectTimeline.js';
 import projectCostRoutes from './routes/projectCost.js';
 import projectBudgetRoutes from './routes/projectBudget.js';
 import projectRiskByMonthRoutes from './routes/projectRiskByMonth.js';
+import adminClientsRoutes from './routes/adminClients.js';
+import adminProjectsRoutes from './routes/adminProjects.js';
+import adminUsersRoutes from './routes/adminUsers.js';
 import { initDb } from './routes/db.js';
 
 const app = express();
@@ -78,6 +81,9 @@ app.use('/api/project-timeline', projectTimelineRoutes);
 app.use('/api/project-cost', projectCostRoutes);
 app.use('/api/project-budget', projectBudgetRoutes);
 app.use('/api/project-risk-by-month', projectRiskByMonthRoutes);
+app.use('/api/admin/clients', adminClientsRoutes);
+app.use('/api/admin/projects', adminProjectsRoutes);
+app.use('/api/admin/users', adminUsersRoutes);
 
 async function forceAdminPasswordReset() {
   if (process.env.NODE_ENV === 'production') {

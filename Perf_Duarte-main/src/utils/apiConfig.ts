@@ -23,6 +23,10 @@ export const apiConfig = {
     projectCost: '/api/project-cost',
     projectBudget: '/api/project-budget',
     projectRiskByMonth: '/api/project-risk-by-month',
+    // Admin routes
+    adminClients: '/api/admin/clients',
+    adminProjects: '/api/admin/projects',
+    adminUsers: '/api/admin/users',
     // User routes
     userRoles: '/api/user-roles',
     userHours: '/api/user-hours',

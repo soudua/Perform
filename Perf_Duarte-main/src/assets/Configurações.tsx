@@ -1,77 +1,113 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import { apiConfig, createApiUrl } from '../utils/apiConfig';
 
-// Simulação de dados - substitua por suas APIs reais
-const mockClientes = [
-  { id: 1, nome: 'Cliente A', email: 'clientea@example.com', telefone: '123456789' },
-  { id: 2, nome: 'Cliente B', email: 'clienteb@example.com', telefone: '987654321' },
-];
+interface FormField {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'email' | 'password' | 'select';
+  required?: boolean;
+  options?: { value: string | number; label: string }[];
+}
 
-const mockProjetos = [
-  { id: 1, nome: 'Projeto Alpha', cliente_id: 1, status: 'Ativo', data_inicio: '2024-01-15' },
-  { id: 2, nome: 'Projeto Beta', cliente_id: 2, status: 'Em Progresso', data_inicio: '2024-02-01' },
-];
+interface Client {
+  id: number;
+  name: string;
+  group_id?: number;
+  contact?: string;
+  email?: string;
+  active: boolean;
+}
 
-const mockUtilizadores = [
-  { id: 1, nome: 'João Silva', email: 'joao@example.com', role: 'Admin', ativo: true },
-  { id: 2, nome: 'Maria Santos', email: 'maria@example.com', role: 'User', ativo: true },
-];
+interface Project {
+  id: number;
+  name: string;
+  project_type?: string;
+  project_description?: string;
+  client_id?: number;
+  start_date?: string;
+  end_date?: string;
+  hourly_rate?: number;
+  total_hours?: number;
+  total_cost?: number;
+  status?: string;
+  group_id?: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
+interface User {
+  id: number;
+  name: string;
+  last_name?: string;
+  email: string;
+  role: number;
+  active: boolean;
+  password?: string;
+}
+
+type EntityType = Client | Project | User;
 type Entity = 'clientes' | 'projetos' | 'utilizadores';
-type Action = 'adicionar' | 'eliminar' | 'modificar';
 
-export default function Configurações() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [currentStep, setCurrentStep] = useState<'login' | 'action' | 'entity' | 'crud'>('login');
-  const [selectedAction, setSelectedAction] = useState<Action | null>(null);
-  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+export default function CRUDAdmin() {
+  const [activeTab, setActiveTab] = useState<Entity>('clientes');
+  const [clientes, setClientes] = useState<Client[]>([]);
+  const [projetos, setProjetos] = useState<Project[]>([]);
+  const [utilizadores, setUtilizadores] = useState<User[]>([]);
+  const [formData, setFormData] = useState<Partial<EntityType>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
 
-  // Estados para dados
-  const [clientes, setClientes] = useState(mockClientes);
-  const [projetos, setProjetos] = useState(mockProjetos);
-  const [utilizadores, setUtilizadores] = useState(mockUtilizadores);
-
-  // Estados para formulários
-  const [formData, setFormData] = useState<any>({});
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [isEditing, setIsEditing] = useState(false);
-
-  const handleLogin = () => {
-    if (password === 'admin123') { // Substitua por sua validação real
-      setIsAuthenticated(true);
-      setCurrentStep('action');
-    } else {
-      alert('Senha incorreta!');
+  // Define form fields for each entity type
+  const getFormFields = (): FormField[] => {
+    switch (activeTab) {
+      case 'clientes':
+        return [
+          { key: 'name', label: 'Nome', type: 'text', required: true },
+          { key: 'group_id', label: 'ID do Grupo', type: 'number' },
+          { key: 'contact', label: 'Contato', type: 'text' },
+          { key: 'email', label: 'Email', type: 'email' }
+        ];
+      
+      case 'projetos':
+        return [
+          { key: 'name', label: 'Nome', type: 'text', required: true },
+          { key: 'project_type', label: 'Tipo', type: 'text' },
+          { key: 'project_description', label: 'Descrição', type: 'text' },
+          { key: 'client_id', label: 'ID do Cliente', type: 'number' },
+          { key: 'start_date', label: 'Data de Início', type: 'text' },
+          { key: 'end_date', label: 'Data de Término', type: 'text' },
+          { key: 'hourly_rate', label: 'Taxa Horária', type: 'number' },
+          { key: 'group_id', label: 'ID do Grupo', type: 'number' },
+          { key: 'status', label: 'Status', type: 'select', options: [
+            { value: 'Active', label: 'Ativo' },
+            { value: 'Inactive', label: 'Inativo' },
+            { value: 'Completed', label: 'Concluído' }
+          ]}
+        ];
+      
+      case 'utilizadores':
+        return [
+          { key: 'name', label: 'Nome', type: 'text', required: true },
+          { key: 'last_name', label: 'Sobrenome', type: 'text' },
+          { key: 'email', label: 'Email', type: 'email', required: true },
+          { key: 'role', label: 'Função', type: 'select', required: true, options: [
+            { value: 0, label: 'Usuário' },
+            { value: 1, label: 'Admin' }
+          ]},
+          ...(editingId ? [] : [{ key: 'password', label: 'Senha', type: 'password' as const, required: true }])
+        ];
+      
+      default:
+        return [];
     }
   };
 
-  const handleActionSelect = (action: Action) => {
-    setSelectedAction(action);
-    setCurrentStep('entity');
-  };
-
-  const handleEntitySelect = (entity: Entity) => {
-    setSelectedEntity(entity);
-    setCurrentStep('crud');
-    setFormData({});
-    setSelectedItem(null);
-    setIsEditing(false);
-  };
-
-  const handleBack = () => {
-    if (currentStep === 'entity') {
-      setCurrentStep('action');
-      setSelectedAction(null);
-    } else if (currentStep === 'crud') {
-      setCurrentStep('entity');
-      setSelectedEntity(null);
-    }
-  };
-
-  const getEntityData = () => {
-    switch (selectedEntity) {
+  // Get the current entity's data array based on active tab
+  const getEntityData = (): EntityType[] => {
+    switch (activeTab) {
       case 'clientes': return clientes;
       case 'projetos': return projetos;
       case 'utilizadores': return utilizadores;
@@ -79,389 +115,343 @@ export default function Configurações() {
     }
   };
 
-  const getEntityFields = () => {
-    switch (selectedEntity) {
-      case 'clientes':
-        return [
-          { key: 'nome', label: 'Nome', type: 'text' },
-          { key: 'email', label: 'Email', type: 'email' },
-          { key: 'telefone', label: 'Telefone', type: 'tel' }
-        ];
-      case 'projetos':
-        return [
-          { key: 'nome', label: 'Nome do Projeto', type: 'text' },
-          { key: 'cliente_id', label: 'Cliente ID', type: 'number' },
-          { key: 'status', label: 'Status', type: 'select', options: ['Ativo', 'Em Progresso', 'Concluído', 'Pausado'] },
-          { key: 'data_inicio', label: 'Data de Início', type: 'date' }
-        ];
-      case 'utilizadores':
-        return [
-          { key: 'nome', label: 'Nome', type: 'text' },
-          { key: 'email', label: 'Email', type: 'email' },
-          { key: 'role', label: 'Função', type: 'select', options: ['Admin', 'User', 'Manager'] },
-          { key: 'ativo', label: 'Ativo', type: 'checkbox' }
-        ];
-      default: return [];
-    }
-  };
+  // Fetch data based on active tab
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        let endpoint = '';
+        
+        switch (activeTab) {
+          case 'clientes':
+            endpoint = apiConfig.endpoints.adminClients;
+            const clientsResponse = await axios.get<Client[]>(createApiUrl(endpoint));
+            console.log('Fetched clients:', clientsResponse.data);
+            setClientes(clientsResponse.data);
+            break;
+          
+          case 'projetos':
+            endpoint = apiConfig.endpoints.adminProjects;
+            const projectsResponse = await axios.get<Project[]>(createApiUrl(endpoint));
+            console.log('Fetched projects:', projectsResponse.data);
+            setProjetos(projectsResponse.data);
+            break;
+          
+          case 'utilizadores':
+            endpoint = apiConfig.endpoints.adminUsers;
+            const usersResponse = await axios.get<User[]>(createApiUrl(endpoint));
+            console.log('Fetched users:', usersResponse.data);
+            setUtilizadores(usersResponse.data);
+            break;
+        }
+      } catch (err) {
+        console.error(`Error fetching ${activeTab}:`, err);
+        setError(`Erro ao carregar ${activeTab}`);
+        switch (activeTab) {
+          case 'clientes': setClientes([]); break;
+          case 'projetos': setProjetos([]); break;
+          case 'utilizadores': setUtilizadores([]); break;
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleSubmit = () => {
-    const data = getEntityData();
-    const newId = Math.max(...data.map(item => item.id)) + 1;
+    fetchData();
+  }, [activeTab]);
 
-    if (selectedAction === 'adicionar') {
-      const newItem = { ...formData, id: newId };
+  const handleAdd = async () => {
+    try {
+      setSubmitLoading(true);
+      setError(null);
       
-      switch (selectedEntity) {
+      let endpoint = '';
+      switch (activeTab) {
         case 'clientes':
-          setClientes([...clientes, newItem]);
+          endpoint = apiConfig.endpoints.adminClients;
+          const clientResponse = await axios.post<Client>(createApiUrl(endpoint), formData);
+          setClientes(prev => [...prev, clientResponse.data]);
           break;
+        
         case 'projetos':
-          setProjetos([...projetos, newItem]);
+          endpoint = apiConfig.endpoints.adminProjects;
+          const projectResponse = await axios.post<Project>(createApiUrl(endpoint), formData);
+          setProjetos(prev => [...prev, projectResponse.data]);
           break;
+        
         case 'utilizadores':
-          setUtilizadores([...utilizadores, newItem]);
+          endpoint = apiConfig.endpoints.adminUsers;
+          const userResponse = await axios.post<User>(createApiUrl(endpoint), formData);
+          setUtilizadores(prev => [...prev, userResponse.data]);
           break;
       }
-      alert('Item adicionado com sucesso!');
-    } else if (selectedAction === 'modificar' && selectedItem) {
-      const updatedItem = { ...selectedItem, ...formData };
       
-      switch (selectedEntity) {
-        case 'clientes':
-          setClientes(clientes.map(c => c.id === selectedItem.id ? updatedItem : c));
-          break;
-        case 'projetos':
-          setProjetos(projetos.map(p => p.id === selectedItem.id ? updatedItem : p));
-          break;
-        case 'utilizadores':
-          setUtilizadores(utilizadores.map(u => u.id === selectedItem.id ? updatedItem : u));
-          break;
-      }
-      alert('Item modificado com sucesso!');
+      setFormData({});
+      alert(`${activeTab.slice(0, -1)} adicionado com sucesso!`);
+    } catch (err: any) {
+      console.error(`Error creating ${activeTab.slice(0, -1)}:`, err);
+      setError(err.response?.data?.error || `Erro ao criar ${activeTab.slice(0, -1)}`);
+    } finally {
+      setSubmitLoading(false);
     }
-    
-    setFormData({});
-    setSelectedItem(null);
-    setIsEditing(false);
   };
 
-  const handleDelete = (item: any) => {
-    if (!confirm(`Tem certeza que deseja eliminar "${item.nome}"?`)) return;
-    
-    switch (selectedEntity) {
-      case 'clientes':
-        setClientes(clientes.filter(c => c.id !== item.id));
-        break;
-      case 'projetos':
-        setProjetos(projetos.filter(p => p.id !== item.id));
-        break;
-      case 'utilizadores':
-        setUtilizadores(utilizadores.filter(u => u.id !== item.id));
-        break;
-    }
-    alert('Item eliminado com sucesso!');
-  };
-
-  const handleEdit = (item: any) => {
-    setSelectedItem(item);
+  const handleEdit = (item: EntityType) => {
+    setEditingId(item.id);
     setFormData(item);
-    setIsEditing(true);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white/20 max-w-md w-full"
-        >
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v3m0-3h3m-3 0h-3m-3-5a6 6 0 1112 0v1.5a2.5 2.5 0 01-5 0V12a6 6 0 00-12 0z" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-2">Painel de Administração</h1>
-            <p className="text-slate-600">Digite a senha para continuar</p>
-          </div>
+  const handleUpdate = async () => {
+    if (!editingId) return;
 
-          <div className="space-y-4">
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Senha de administrador"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-              />
+    try {
+      setSubmitLoading(true);
+      setError(null);
+      
+      let endpoint = '';
+      switch (activeTab) {
+        case 'clientes':
+          endpoint = apiConfig.endpoints.adminClients;
+          const clientResponse = await axios.put<Client>(
+            createApiUrl(`${endpoint}/${editingId}`),
+            formData
+          );
+          setClientes(prev => prev.map(item => 
+            item.id === editingId ? clientResponse.data : item
+          ));
+          break;
+
+        case 'projetos':
+          endpoint = apiConfig.endpoints.adminProjects;
+          const projectResponse = await axios.put<Project>(
+            createApiUrl(`${endpoint}/${editingId}`),
+            formData
+          );
+          setProjetos(prev => prev.map(item => 
+            item.id === editingId ? projectResponse.data : item
+          ));
+          break;
+
+        case 'utilizadores':
+          endpoint = apiConfig.endpoints.adminUsers;
+          const userResponse = await axios.put<User>(
+            createApiUrl(`${endpoint}/${editingId}`),
+            formData
+          );
+          setUtilizadores(prev => prev.map(item => 
+            item.id === editingId ? userResponse.data : item
+          ));
+          break;
+      }
+      
+      setFormData({});
+      setEditingId(null);
+      alert(`${activeTab.slice(0, -1)} atualizado com sucesso!`);
+    } catch (err: any) {
+      console.error(`Error updating ${activeTab.slice(0, -1)}:`, err);
+      setError(err.response?.data?.error || `Erro ao atualizar ${activeTab.slice(0, -1)}`);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm(`Tem certeza que deseja excluir este ${activeTab.slice(0, -1)}?`)) {
+      return;
+    }
+
+    try {
+      setSubmitLoading(true);
+      setError(null);
+      
+      let endpoint = '';
+      switch (activeTab) {
+        case 'clientes':
+          endpoint = apiConfig.endpoints.adminClients;
+          await axios.delete(createApiUrl(`${endpoint}/${id}`));
+          setClientes(prev => prev.filter(item => item.id !== id));
+          break;
+
+        case 'projetos':
+          endpoint = apiConfig.endpoints.adminProjects;
+          await axios.delete(createApiUrl(`${endpoint}/${id}`));
+          setProjetos(prev => prev.filter(item => item.id !== id));
+          break;
+
+        case 'utilizadores':
+          endpoint = apiConfig.endpoints.adminUsers;
+          await axios.delete(createApiUrl(`${endpoint}/${id}`));
+          setUtilizadores(prev => prev.filter(item => item.id !== id));
+          break;
+      }
+
+      alert(`${activeTab.slice(0, -1)} excluído com sucesso!`);
+    } catch (err: any) {
+      console.error(`Error deleting ${activeTab.slice(0, -1)}:`, err);
+      setError(err.response?.data?.error || `Erro ao excluir ${activeTab.slice(0, -1)}`);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setFormData({});
+    setError(null);
+  };
+
+  const entityData = getEntityData();
+
+  return (
+    <div className="container mx-auto p-4">
+      <div className="flex space-x-4 mb-4">
+        {['clientes', 'projetos', 'utilizadores'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab as Entity)}
+            className={`px-4 py-2 rounded focus:outline-none ${
+              activeTab === tab ? 'bg-blue-500 text-white' : 'bg-gray-200'
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      <div className="bg-white shadow rounded p-4 mb-4">
+        <h2 className="text-xl font-bold mb-4">
+          {editingId ? `Editar ${activeTab.slice(0, -1)}` : `Adicionar ${activeTab.slice(0, -1)}`}
+        </h2>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          editingId ? handleUpdate() : handleAdd();
+        }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {getFormFields().map((field) => (
+              <div key={field.key}>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  {field.label}
+                </label>
+                {field.type === 'select' ? (
+                  <select
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    value={formData[field.key as keyof typeof formData]?.toString() || ''}
+                    onChange={(e) => {
+                      const value = field.type === 'number' ? Number(e.target.value) : e.target.value;
+                      setFormData({ ...formData, [field.key]: value });
+                    }}
+                    required={field.required}
+                  >
+                    <option value="">Selecione...</option>
+                    {field.options?.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    value={formData[field.key as keyof typeof formData]?.toString() || ''}
+                    onChange={(e) => {
+                      const value = field.type === 'number' ? Number(e.target.value) : e.target.value;
+                      setFormData({ ...formData, [field.key]: value });
+                    }}
+                    required={field.required}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            <button
+              type="submit"
+              disabled={submitLoading}
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mr-2"
+            >
+              {submitLoading ? 'Salvando...' : editingId ? 'Atualizar' : 'Adicionar'}
+            </button>
+            {editingId && (
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={handleCancel}
+                className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {showPassword ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.464 8.464M14.121 14.121l1.415 1.415M14.121 14.121L9.878 9.878m4.242 4.242L8.464 8.464" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  )}
-                </svg>
+                Cancelar
               </button>
-            </div>
-
-            <button
-              onClick={handleLogin}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-300 shadow-lg"
-            >
-              Entrar
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (currentStep === 'action') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
-              Selecione uma Ação
-            </h1>
-            <p className="text-slate-600 text-lg">Escolha o que deseja fazer</p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { action: 'adicionar' as Action, title: 'Adicionar', icon: '➕', color: 'from-green-500 to-emerald-600', desc: 'Criar novos registos' },
-              { action: 'modificar' as Action, title: 'Modificar', icon: '✏️', color: 'from-blue-500 to-indigo-600', desc: 'Editar registos existentes' },
-              { action: 'eliminar' as Action, title: 'Eliminar', icon: '🗑️', color: 'from-red-500 to-pink-600', desc: 'Remover registos' }
-            ].map((item, index) => (
-              <motion.div
-                key={item.action}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.2 }}
-                className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                onClick={() => handleActionSelect(item.action)}
-              >
-                <div className={`w-16 h-16 bg-gradient-to-r ${item.color} rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                  <span className="text-2xl">{item.icon}</span>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2 text-center">{item.title}</h3>
-                <p className="text-slate-600 text-center">{item.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (currentStep === 'entity') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
-              {selectedAction === 'adicionar' && 'Adicionar'}
-              {selectedAction === 'modificar' && 'Modificar'}
-              {selectedAction === 'eliminar' && 'Eliminar'}
-            </h1>
-            <p className="text-slate-600 text-lg">Escolha o tipo de registo</p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            {[
-              { entity: 'clientes' as Entity, title: 'Clientes', icon: '👥', color: 'from-blue-500 to-indigo-600' },
-              { entity: 'projetos' as Entity, title: 'Projetos', icon: '📁', color: 'from-emerald-500 to-teal-600' },
-              { entity: 'utilizadores' as Entity, title: 'Utilizadores', icon: '👤', color: 'from-purple-500 to-pink-600' }
-            ].map((item, index) => (
-              <motion.div
-                key={item.entity}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.2 }}
-                className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                onClick={() => handleEntitySelect(item.entity)}
-              >
-                <div className={`w-16 h-16 bg-gradient-to-r ${item.color} rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                  <span className="text-2xl">{item.icon}</span>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2 text-center">{item.title}</h3>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="flex justify-center">
-            <button
-              onClick={handleBack}
-              className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors duration-300"
-            >
-              ← Voltar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (currentStep === 'crud') {
-    const entityData = getEntityData();
-    const fields = getEntityFields();
-
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
-              {selectedAction === 'adicionar' && `Adicionar ${selectedEntity}`}
-              {selectedAction === 'modificar' && `Modificar ${selectedEntity}`}
-              {selectedAction === 'eliminar' && `Eliminar ${selectedEntity}`}
-            </h1>
-          </motion.div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Lista de itens existentes */}
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20"
-            >
-              <h2 className="text-2xl font-bold text-slate-800 mb-6">
-                {selectedEntity?.charAt(0).toUpperCase() + selectedEntity?.slice(1)} Existentes
-              </h2>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {entityData.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-white/30">
-                    <div>
-                      <h3 className="font-semibold text-slate-800">{item.nome}</h3>
-                      <p className="text-sm text-slate-600">{item.email || `ID: ${item.id}`}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      {selectedAction === 'modificar' && (
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
-                        >
-                          Editar
-                        </button>
-                      )}
-                      {selectedAction === 'eliminar' && (
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
-                        >
-                          Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Formulário */}
-            {(selectedAction === 'adicionar' || (selectedAction === 'modificar' && isEditing)) && (
-              <motion.div
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20"
-              >
-                <h2 className="text-2xl font-bold text-slate-800 mb-6">
-                  {selectedAction === 'adicionar' ? 'Novo Registo' : 'Editar Registo'}
-                </h2>
-                <div className="space-y-4">
-                  {fields.map((field) => (
-                    <div key={field.key}>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">
-                        {field.label}
-                      </label>
-                      {field.type === 'select' ? (
-                        <select
-                          value={formData[field.key] || ''}
-                          onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        >
-                          <option value="">Selecione...</option>
-                          {field.options?.map((option) => (
-                            <option key={option} value={option}>{option}</option>
-                          ))}
-                        </select>
-                      ) : field.type === 'checkbox' ? (
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={formData[field.key] || false}
-                            onChange={(e) => setFormData({ ...formData, [field.key]: e.target.checked })}
-                            className="mr-2 rounded"
-                          />
-                          {field.label}
-                        </label>
-                      ) : (
-                        <input
-                          type={field.type}
-                          value={formData[field.key] || ''}
-                          onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        />
-                      )}
-                    </div>
-                  ))}
-                  
-                  <div className="flex gap-4 pt-4">
-                    <button
-                      onClick={handleSubmit}
-                      className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-                    >
-                      {selectedAction === 'adicionar' ? 'Adicionar' : 'Guardar'}
-                    </button>
-                    {isEditing && (
-                      <button
-                        onClick={() => {
-                          setIsEditing(false);
-                          setFormData({});
-                          setSelectedItem(null);
-                        }}
-                        className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors duration-300"
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
             )}
           </div>
-
-          <div className="flex justify-center mt-8">
-            <button
-              onClick={handleBack}
-              className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors duration-300"
-            >
-              ← Voltar
-            </button>
-          </div>
-        </div>
+        </form>
       </div>
-    );
-  }
 
-  return null;
+      {loading ? (
+        <div>Carregando...</div>
+      ) : (
+        <div className="bg-white shadow rounded p-4">
+          <h2 className="text-xl font-bold mb-4">Lista de {activeTab}</h2>
+          {entityData.length === 0 ? (
+            <div>Nenhum registro encontrado.</div>
+          ) : (
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  {getFormFields()
+                    .filter(field => field.key !== 'password')
+                    .map((field) => (
+                      <th key={field.key} className="px-4 py-2 text-left">
+                        {field.label}
+                      </th>
+                    ))}
+                  <th className="px-4 py-2">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entityData.map((item) => (
+                  <tr key={item.id} className="border-t">
+                    {getFormFields()
+                      .filter(field => field.key !== 'password')
+                      .map((field) => {
+                        let value = item[field.key as keyof typeof item];
+                        // Special formatting for role field
+                        if (field.key === 'role') {
+                          const roleOption = field.options?.find(opt => opt.value === value);
+                          value = roleOption?.label || value;
+                        }
+                        return (
+                          <td key={field.key} className="px-4 py-2">
+                            {value?.toString() || ''}
+                          </td>
+                        );
+                      })}
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-2 rounded mr-2"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded"
+                      >
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
